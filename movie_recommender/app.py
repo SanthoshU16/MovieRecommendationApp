@@ -14,15 +14,36 @@ TMDB_API_KEY = "b1b1dc89770344f6675d558c42205f9f"
 
 @st.cache_resource
 def load_data():
-    if not os.path.exists("tmdb_5000_movies.csv") or not os.path.exists("tmdb_5000_credits.csv"):
+    # 1️⃣ Set Kaggle credentials ONLY if present
+    if "KAGGLE_USERNAME" in st.secrets and "KAGGLE_KEY" in st.secrets:
         os.environ["KAGGLE_USERNAME"] = st.secrets["KAGGLE_USERNAME"]
         os.environ["KAGGLE_KEY"] = st.secrets["KAGGLE_KEY"]
+    else:
+        st.error("❌ Kaggle secrets not found in Streamlit Cloud")
+        st.stop()
 
-       
-        os.system("kaggle datasets download -d tmdb/tmdb-movie-metadata -p . --unzip")
+    movies_file = "tmdb_5000_movies.csv"
+    credits_file = "tmdb_5000_credits.csv"
 
-    movies = pd.read_csv("tmdb_5000_movies.csv")
-    credits = pd.read_csv("tmdb_5000_credits.csv")
+    # 2️⃣ Download dataset if missing
+    if not (os.path.exists(movies_file) and os.path.exists(credits_file)):
+        st.info("📥 Downloading TMDB dataset from Kaggle...")
+        exit_code = os.system(
+            "kaggle datasets download -d tmdb/tmdb-movie-metadata -p . --unzip"
+        )
+
+        if exit_code != 0:
+            st.error("❌ Kaggle download failed")
+            st.stop()
+
+    # 3️⃣ Final verification (CRITICAL)
+    if not os.path.exists(movies_file) or not os.path.exists(credits_file):
+        st.error("❌ Dataset files not found after download")
+        st.stop()
+
+    # 4️⃣ Load safely
+    movies = pd.read_csv(movies_file)
+    credits = pd.read_csv(credits_file)
 
     movies = movies.merge(credits, on="title")
     movies = movies[[
@@ -58,7 +79,7 @@ def load_data():
     similarity = cosine_similarity(vectors)
 
     return movies, similarity
-
+    
 movies, similarity = load_data()
 
 def fetch_poster(title):
