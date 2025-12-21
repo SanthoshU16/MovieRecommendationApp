@@ -7,48 +7,40 @@ from sklearn.metrics.pairwise import cosine_similarity
 from ast import literal_eval
 import pycountry
 
+# -------------------- PAGE CONFIG --------------------
 st.set_page_config(layout="wide")
 st.title("🎬 Movie Recommender")
 
-TMDB_API_KEY = "b1b1dc89770344f6675d558c42205f9f"  
+TMDB_API_KEY = "b1b1dc89770344f6675d558c42205f9f"
 
+# -------------------- DATA LOADING --------------------
 @st.cache_resource
 def load_data():
-    # 1️⃣ Set Kaggle credentials ONLY if present
-    if "KAGGLE_USERNAME" in st.secrets and "KAGGLE_KEY" in st.secrets:
-        os.environ["KAGGLE_USERNAME"] = st.secrets["KAGGLE_USERNAME"]
-        os.environ["KAGGLE_KEY"] = st.secrets["KAGGLE_KEY"]
-    else:
-        st.error("❌ Kaggle secrets not found in Streamlit Cloud")
-        st.stop()
-
     movies_file = "tmdb_5000_movies.csv"
     credits_file = "tmdb_5000_credits.csv"
 
-    # 2️⃣ Download dataset if missing
-    if not (os.path.exists(movies_file) and os.path.exists(credits_file)):
-        st.info("📥 Downloading TMDB dataset from Kaggle...")
-        exit_code = os.system(
-            "kaggle datasets download -d tmdb/tmdb-movie-metadata -p . --unzip"
-        )
+    MOVIES_URL = "https://github.com/SanthoshU16/MovieRecommendationApp/releases/download/v1.0/tmdb_5000_movies.csv"
+    CREDITS_URL = "https://github.com/SanthoshU16/MovieRecommendationApp/releases/download/v1.0/tmdb_5000_credits.csv"
 
-        if exit_code != 0:
-            st.error("❌ Kaggle download failed")
-            st.stop()
+    if not os.path.exists(movies_file):
+        st.info("📥 Downloading movies dataset...")
+        os.system(f"wget {MOVIES_URL}")
 
-    # 3️⃣ Final verification (CRITICAL)
+    if not os.path.exists(credits_file):
+        st.info("📥 Downloading credits dataset...")
+        os.system(f"wget {CREDITS_URL}")
+
     if not os.path.exists(movies_file) or not os.path.exists(credits_file):
-        st.error("❌ Dataset files not found after download")
+        st.error("❌ Dataset download failed. Please check GitHub release links.")
         st.stop()
 
-    # 4️⃣ Load safely
     movies = pd.read_csv(movies_file)
     credits = pd.read_csv(credits_file)
 
     movies = movies.merge(credits, on="title")
     movies = movies[[
-        "movie_id", "title", "overview", "genres", "keywords", "cast", "crew",
-        "original_language", "release_date", "vote_average"
+        "movie_id", "title", "overview", "genres", "keywords",
+        "cast", "crew", "original_language", "release_date", "vote_average"
     ]]
 
     def extract_names(x):
@@ -67,11 +59,14 @@ def load_data():
         return ""
 
     movies["tags"] = (
-        movies["overview"].fillna("")
-        + " " + movies["genres"].apply(extract_names)
-        + " " + movies["keywords"].apply(extract_names)
-        + " " + movies["cast"].apply(lambda x: " ".join([i["name"] for i in literal_eval(x)[:3]]) if pd.notnull(x) else "")
-        + " " + movies["crew"].apply(get_director)
+        movies["overview"].fillna("") + " "
+        + movies["genres"].apply(extract_names) + " "
+        + movies["keywords"].apply(extract_names) + " "
+        + movies["cast"].apply(
+            lambda x: " ".join([i["name"] for i in literal_eval(x)[:3]])
+            if pd.notnull(x) else ""
+        ) + " "
+        + movies["crew"].apply(get_director)
     ).str.lower()
 
     cv = CountVectorizer(max_features=5000, stop_words="english")
@@ -79,14 +74,14 @@ def load_data():
     similarity = cosine_similarity(vectors)
 
     return movies, similarity
-    
+
 movies, similarity = load_data()
 
+# -------------------- HELPERS --------------------
 def fetch_poster(title):
     try:
         url = f"https://api.themoviedb.org/3/search/movie?api_key={TMDB_API_KEY}&query={title}"
-        response = requests.get(url)
-        data = response.json()
+        data = requests.get(url).json()
         if data["results"] and data["results"][0].get("poster_path"):
             return "https://image.tmdb.org/t/p/w500" + data["results"][0]["poster_path"]
     except:
@@ -142,33 +137,18 @@ def recommend(selected_title):
         })
     return recs
 
-# Sidebar Filters
+# -------------------- SIDEBAR --------------------
 with st.sidebar:
     st.header("🎯 Filters")
 
-    years = sorted(movies["release_date"].dropna().apply(lambda x: pd.to_datetime(x).year).unique())
-    year_filter = st.selectbox("📅 Release Year", options=["All"] + list(map(str, years)))
+    years = sorted(
+        movies["release_date"].dropna().apply(lambda x: pd.to_datetime(x).year).unique()
+    )
+    year_filter = st.selectbox("📅 Release Year", ["All"] + list(map(str, years)))
 
-    language_code_overrides = {
-        "cn": "Chinese",
-        "xx": None
-    }
-
-    def get_language_name_safe(code):
-        if code in language_code_overrides:
-            return language_code_overrides[code]
-        try:
-            return pycountry.languages.get(alpha_2=code).name
-        except:
-            return None
     languages = sorted(movies["original_language"].dropna().unique())
-    full_languages = []
-    for code in languages:
-        name = get_language_name_safe(code)
-        if name:
-            full_languages.append(name)
-
-    language_filter = st.selectbox("🌐 Language", options=["All"] + full_languages)
+    language_names = [get_language_name(l) for l in languages if get_language_name(l)]
+    language_filter = st.selectbox("🌐 Language", ["All"] + language_names)
 
     st.header("❤️ Favorites")
     if "favorites" not in st.session_state:
@@ -176,44 +156,40 @@ with st.sidebar:
 
     for i, fav in enumerate(st.session_state.favorites):
         st.image(fav["poster_url"], use_container_width=True)
-        st.markdown(f"**🎬 {fav['title']} ({fav['year']})**")
-        st.markdown(f"⭐ {fav['rating']} | 🎭 {fav['genres']} | 🌐 {fav['language']}")
-        if st.button("❌ Remove", key=f"remove_{fav['title']}"):
+        st.markdown(f"**{fav['title']} ({fav['year']})**")
+        if st.button("❌ Remove", key=f"remove_{i}"):
             st.session_state.favorites.pop(i)
             st.rerun()
 
-
-recommendations = []
+# -------------------- MAIN UI --------------------
 movie_input = st.text_input("Enter a movie name:")
 
 if movie_input:
     matches = movies[movies["title"].str.lower().str.contains(movie_input.lower())]
     if not matches.empty:
         selected_title = st.selectbox("Select the correct movie:", matches["title"].tolist())
-        if selected_title:
-            recommendations = recommend(selected_title)
+        recommendations = recommend(selected_title)
 
-            if year_filter != "All":
-                recommendations = [r for r in recommendations if str(r["year"]) == year_filter]
-            if language_filter != "All":
-                recommendations = [r for r in recommendations if r["language"] == language_filter]
+        if year_filter != "All":
+            recommendations = [r for r in recommendations if str(r["year"]) == year_filter]
+        if language_filter != "All":
+            recommendations = [r for r in recommendations if r["language"] == language_filter]
 
-if recommendations:
-    st.subheader(f"🎬 Recommendations for '{selected_title}'")
-    cols = st.columns(3)
-    for idx, movie in enumerate(recommendations):
-        col = cols[idx % 3]
-        with col:
-            st.image(movie["poster_url"], use_container_width=True)
-            st.markdown(f"**{movie['title']} ({movie['year']})**")
-            st.markdown(f"⭐ {movie['rating']} | 🎭 {movie['genres']}")
-            st.markdown(f"🎥 *{movie['director']}*")
-            st.markdown(f"👥 *{movie['cast']}*")
-            st.markdown(f"📝 {movie['overview'][:100]}...")
+        st.subheader(f"🎬 Recommendations for '{selected_title}'")
+        cols = st.columns(3)
 
-            if movie not in st.session_state.favorites:
-                if st.button("💾 Add to Favorites", key=f"fav_{movie['title']}"):
-                    st.session_state.favorites.append(movie)
-                    st.rerun()
+        for idx, movie in enumerate(recommendations):
+            with cols[idx % 3]:
+                st.image(movie["poster_url"], use_container_width=True)
+                st.markdown(f"**{movie['title']} ({movie['year']})**")
+                st.markdown(f"⭐ {movie['rating']} | 🎭 {movie['genres']}")
+                st.markdown(f"🎥 *{movie['director']}*")
+                st.markdown(f"👥 *{movie['cast']}*")
+                st.markdown(movie["overview"][:120] + "...")
+
+                if movie not in st.session_state.favorites:
+                    if st.button("💾 Add to Favorites", key=f"fav_{movie['title']}"):
+                        st.session_state.favorites.append(movie)
+                        st.rerun()
 else:
-    st.info("No recommendations yet. Start by typing a movie name above.")
+    st.info("Start by typing a movie name above 🎥")
