@@ -6,8 +6,9 @@ import os
 
 
 if not os.path.exists("tmdb_5000_movies.csv") or not os.path.exists("tmdb_5000_credits.csv"):
-    os.system("kaggle datasets download -d tmdb/tmdb-movie-metadata -p . --unzip")
-
+    raise FileNotFoundError(
+        "Dataset files not found. Please download TMDB dataset from Kaggle and place them in this directory."
+    )
 movies = pd.read_csv("tmdb_5000_movies.csv")
 credits = pd.read_csv("tmdb_5000_credits.csv")
 movies = movies.merge(credits, on="title")
