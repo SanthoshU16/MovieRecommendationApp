@@ -90,7 +90,7 @@ MovieRecommendationApp/
 ### 1️⃣ Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/MovieRecommendationApp.git
+git clone https://github.com/SanthoshU16/MovieRecommendationApp.git
 cd MovieRecommendationApp
 ```
 
@@ -133,6 +133,7 @@ TMDB_API_KEY = "your_api_key_here"
 **Santhosh U**
 🎓 Student | 💡 AI & ML Enthusiast
 🔗 GitHub: [https://github.com/SanthoshU16](https://github.com/SanthoshU16)
+
 🔗 LinkedIn: [https://www.linkedin.com/](www.linkedin.com/in/santhoshu1)
 
 ---
