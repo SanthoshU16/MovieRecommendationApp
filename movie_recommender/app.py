@@ -22,16 +22,24 @@ def load_data():
     MOVIES_URL = "https://github.com/SanthoshU16/MovieRecommendationApp/releases/download/v1.0/tmdb_5000_movies.csv"
     CREDITS_URL = "https://github.com/SanthoshU16/MovieRecommendationApp/releases/download/v1.0/tmdb_5000_credits.csv"
 
+    def download_file(url, filename):
+        st.info(f"📥 Downloading {filename}...")
+        response = requests.get(url, stream=True)
+        if response.status_code != 200:
+            st.error(f"❌ Failed to download {filename}")
+            st.stop()
+        with open(filename, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
     if not os.path.exists(movies_file):
-        st.info("📥 Downloading movies dataset...")
-        os.system(f"wget {MOVIES_URL}")
+        download_file(MOVIES_URL, movies_file)
 
     if not os.path.exists(credits_file):
-        st.info("📥 Downloading credits dataset...")
-        os.system(f"wget {CREDITS_URL}")
+        download_file(CREDITS_URL, credits_file)
 
     if not os.path.exists(movies_file) or not os.path.exists(credits_file):
-        st.error("❌ Dataset download failed. Please check GitHub release links.")
+        st.error("❌ Dataset files missing after download")
         st.stop()
 
     movies = pd.read_csv(movies_file)
