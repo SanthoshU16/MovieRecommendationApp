@@ -23,10 +23,9 @@ def load_data():
     CREDITS_URL = "https://github.com/SanthoshU16/MovieRecommendationApp/releases/download/v1.0/tmdb_5000_credits.csv"
 
     def download_file(url, filename):
-        st.info(f"📥 Downloading {filename}...")
         response = requests.get(url, stream=True)
         if response.status_code != 200:
-            st.error(f"❌ Failed to download {filename}")
+            st.error("❌ Failed to download dataset")
             st.stop()
         with open(filename, "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
@@ -38,14 +37,11 @@ def load_data():
     if not os.path.exists(credits_file):
         download_file(CREDITS_URL, credits_file)
 
-    if not os.path.exists(movies_file) or not os.path.exists(credits_file):
-        st.error("❌ Dataset files missing after download")
-        st.stop()
-
     movies = pd.read_csv(movies_file)
     credits = pd.read_csv(credits_file)
 
     movies = movies.merge(credits, on="title")
+    
     movies = movies[[
         "movie_id", "title", "overview", "genres", "keywords",
         "cast", "crew", "original_language", "release_date", "vote_average"
@@ -82,9 +78,9 @@ def load_data():
     similarity = cosine_similarity(vectors)
 
     return movies, similarity
-
-movies, similarity = load_data()
-
+with st.spinner("Loading movie data..."):
+    movies, similarity = load_data()
+    
 # -------------------- HELPERS --------------------
 def fetch_poster(title):
     try:
