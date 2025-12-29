@@ -131,7 +131,7 @@ TMDB_API_KEY = "your_api_key_here"
 ## 👨‍💻 Author
 
 **Santhosh U**
-🎓 Student | 💡 AI & ML Enthusiast
+🎓 B.Tech AI&DS Student | 💡 AI & ML Enthusiast
 🔗 GitHub: [https://github.com/SanthoshU16](https://github.com/SanthoshU16)
 
 🔗 LinkedIn: [https://www.linkedin.com/in/santhoshu1/]
