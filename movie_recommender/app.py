@@ -7,13 +7,13 @@ from sklearn.metrics.pairwise import cosine_similarity
 from ast import literal_eval
 import pycountry
 
-# -------------------- PAGE CONFIG --------------------
+# -------------------- PAGE CONFIG -----------------
 st.set_page_config(layout="wide")
 st.title("🎬 Movie Recommender")
 
 TMDB_API_KEY = "b1b1dc89770344f6675d558c42205f9f"
 
-# -------------------- DATA LOADING --------------------
+# -------------------- DATA LOADING ------------------
 @st.cache_resource
 def load_data():
     movies_file = "tmdb_5000_movies.csv"
