@@ -145,5 +145,3 @@ TMDB_API_KEY = "your_api_key_here"
 * Streamlit Community
 
 ---
-
-If you like this project, don’t forget to ⭐ the repository!
